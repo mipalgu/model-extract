@@ -44,12 +44,21 @@ public struct ModelExtract: ParsableCommand {
     @Argument(help: "The filepath to the sqlite database containing the Kripke structure.")
     var kripkeStructure: String
 
+    @Option(name: [.short, .long], help: "The directory to store the newly generated models.")
+    var outputDirectory: String = "models"
+
     public init() {}
 
     public mutating func run() throws {
         guard !formats.isEmpty else { throw ValidationError("Output format cannot be empty.") }
         let url = URL(fileURLWithPath: kripkeStructure, isDirectory: false)
         let structure = try SQLiteKripkeStructure(readingAt: url)
+        let fm = FileManager.default
+        let outputURL = URL(fileURLWithPath: outputDirectory, isDirectory: true)
+        try fm.createDirectory(at: outputURL, withIntermediateDirectories: true)
+        guard fm.changeCurrentDirectoryPath(outputURL.path) else {
+            throw ValidationError("Unable to change working directory to \(outputURL.path)")
+        }
         let viewFactory = AggregateKripkeStructureViewFactory(factories: Set(formats).map(\.viewFactory))
         let view = viewFactory.make(identifier: structure.identifier)
         try view.generate(store: structure, usingClocks: timed)
